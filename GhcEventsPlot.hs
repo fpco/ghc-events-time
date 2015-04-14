@@ -130,9 +130,15 @@ plotDistribution EventLog{ dat = Data{ events } } = do
     let ds = map (\(_, z) -> fromIntegral z / 1e6) durations
 
     renderHeader (label ++ "-durations.svg") $
-      barDiag
-       (label ++ " - Durations (milliseconds)")
-       (zip (map fst $ asList (hist ds)) (map snd $ asList (hist ds)))
+      doubleHistogramDiagram (label ++ " - Durations (milliseconds)") ds
+
+
+doubleHistogramDiagram :: String -> [Double] -> Diagram B R2
+doubleHistogramDiagram label ds =
+  barDiag
+    label
+    (zip (map fst $ asList (hist ds)) (map snd $ asList (hist ds)))
+
 
 denv :: DEnv
 denv = unsafePerformIO $ defaultEnv vectorAlignmentFns 500 500
