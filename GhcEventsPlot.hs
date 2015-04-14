@@ -129,7 +129,7 @@ plotDistribution EventLog{ dat = Data{ events } } = do
   for_ (Map.toList groupedDurations) $ \(label, durations) -> do
     let ds = map (\(_, z) -> fromIntegral z / 1e6) durations
 
-    displayHeader (label ++ "-durations.svg") $
+    renderHeader (label ++ "-durations.svg") $
       barDiag
        (label ++ " - Durations (milliseconds)")
        (zip (map fst $ asList (hist ds)) (map snd $ asList (hist ds)))
@@ -165,8 +165,8 @@ hist :: F.Foldable f =>
         f Double -> Histogram U.Vector BinD Double
 hist xs = fillBuilder (hb xs) xs
 
-displayHeader :: FilePath -> Diagram B R2 -> IO ()
-displayHeader fn =
+renderHeader :: FilePath -> Diagram B R2 -> IO ()
+renderHeader fn =
   mainRender ( DiagramOpts (Just 900) (Just 700) fn
              , DiagramLoopOpts False Nothing 0
              )
