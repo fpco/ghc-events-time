@@ -36,8 +36,6 @@ import Data.Default.Class
 
 import Text.Printf
 
-import System.IO.Unsafe
-
 
 data PlotOpts = PlotOpts
   { plotOptsMode :: !PlotMode
@@ -126,20 +124,17 @@ plotDistribution EventLog{ dat = Data{ events } } = do
 
       groupedDurations = groupEventDurations userEvents
 
+  denv <- defaultEnv vectorAlignmentFns 500 500
+
   for_ (Map.toList groupedDurations) $ \(label, durations) -> do
     let ds = map (\(_, z) -> fromIntegral z / 1e6) durations
 
     renderHeader (label ++ "-durations.svg") $
-      doubleHistogramDiagram (label ++ " - Durations (milliseconds)") ds
+      doubleHistogramDiagram denv (label ++ " - Durations (milliseconds)") ds
 
 
-doubleHistogramDiagram :: String -> [Double] -> Diagram B R2
-doubleHistogramDiagram label ds = barDiag label (asList (hist ds))
-
-
-denv :: DEnv
-denv = unsafePerformIO $ defaultEnv vectorAlignmentFns 500 500
-{-# NOINLINE denv #-}
+doubleHistogramDiagram :: DEnv -> String -> [Double] -> Diagram B R2
+doubleHistogramDiagram denv label ds = barDiag denv label (asList (hist ds))
 
 
 numBins :: Int
@@ -194,10 +189,11 @@ barChart title bvs = toRenderable layout
       $ plot_bars_item_styles .~ [(solidFillStyle (blue `withOpacity` 0.25), Nothing)]
       $ def
 
-barDiag :: String ->
+barDiag :: DEnv ->
+           String ->
            [(Double, Double)] ->
            Diagram B R2
-barDiag title bvs = fst $ runBackend denv (render (barChart title bvs) (500, 500))
+barDiag denv title bvs = fst $ runBackend denv (render (barChart title bvs) (500, 500))
 
 die :: String -> IO a
 die msg = do
