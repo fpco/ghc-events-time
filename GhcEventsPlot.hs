@@ -134,10 +134,7 @@ plotDistribution EventLog{ dat = Data{ events } } = do
 
 
 doubleHistogramDiagram :: String -> [Double] -> Diagram B R2
-doubleHistogramDiagram label ds =
-  barDiag
-    label
-    (zip (map fst $ asList (hist ds)) (map snd $ asList (hist ds)))
+doubleHistogramDiagram label ds = barDiag label (asList (hist ds))
 
 
 denv :: DEnv
