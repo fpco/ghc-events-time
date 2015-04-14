@@ -129,7 +129,7 @@ plotDistribution EventLog{ dat = Data{ events } } = do
   for_ (Map.toList groupedDurations) $ \(label, durations) -> do
     let ds = map (\(_, z) -> fromIntegral z / 1e6) durations
 
-    displayHeader (label ++ "-durations.png") $
+    displayHeader (label ++ "-durations.svg") $
       barDiag
        (label ++ " - Durations (milliseconds)")
        (zip (map fst $ asList (hist ds)) (map snd $ asList (hist ds)))
