@@ -4,8 +4,8 @@ module GHC.Events.Time.Diagrams
 
 
 import qualified Control.Foldl as F
-import           Data.Colour
-import           Data.Default.Class
+import           Data.Colour ()
+import           Data.Default.Class (def)
 import           Data.Histogram (asList)
 import           Data.Histogram.Fill
 import           Data.Histogram.Generic (Histogram)
@@ -13,8 +13,8 @@ import qualified Data.Vector.Unboxed as U
 import           Diagrams.Backend.Cairo.CmdLine
 import           Diagrams.Prelude hiding (sample, render, (<>))
 import           Graphics.Rendering.Chart hiding (label)
-import           Graphics.Rendering.Chart.Backend.Diagrams
-import           Text.Printf
+import           Graphics.Rendering.Chart.Backend.Diagrams (DEnv, runBackend)
+import           Text.Printf (printf)
 
 
 numBins :: Int
