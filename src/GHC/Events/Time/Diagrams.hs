@@ -4,7 +4,6 @@ module GHC.Events.Time.Diagrams
 
 
 import qualified Control.Foldl as F
-import           Data.Colour ()
 import           Data.Default.Class (def)
 import           Data.Histogram (asList)
 import           Data.Histogram.Fill
