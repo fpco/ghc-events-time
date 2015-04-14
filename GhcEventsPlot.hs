@@ -14,6 +14,8 @@ import           GHC.Events.Time (plotDistribution)
 data PlotOpts = PlotOpts
   { plotOptsMode :: !PlotMode
   , plotOptsEventLogPath :: !FilePath
+  , plotOptsStartLabel :: !String
+  , plotOptsStopLabel :: !String
   } deriving (Eq, Ord, Show, Generic)
 
 
@@ -46,6 +48,18 @@ plotoptsParser =
   PlotOpts
     <$> plotModeParser
     <*> argument str (metavar "<eventlog file>")
+    <*> strOption
+          (   long "start"
+           <> metavar "STR"
+           <> help "Use STR as the prefix for the start of user events (default: \"START \")"
+           <> value "START "
+          )
+    <*> strOption
+          (   long "stop"
+           <> metavar "STR"
+           <> help "Use STR as the prefix for the end of user events (default: \"STOP \")"
+           <> value "STOP "
+          )
 
 
 die :: String -> IO a
@@ -56,12 +70,19 @@ die msg = do
 
 main :: IO ()
 main = do
-  PlotOpts mode eventLogPath <- execParser $ info (helper <*> plotoptsParser) fullDesc
+  PlotOpts
+    { plotOptsMode         = mode
+    , plotOptsEventLogPath = eventLogPath
+    , plotOptsStartLabel   = startLabel
+    , plotOptsStopLabel    = stopLabel
+    } <- execParser $ info (helper <*> plotoptsParser) fullDesc
+
+  let startStopLabels = (startLabel, stopLabel)
 
   eventLog <- readEventLogFromFile eventLogPath >>= \case
     Left err -> die $ "Could not read eventlog file: " ++ err
     Right el -> return el
 
   case mode of
-    PlotDistribution -> plotDistribution eventLog ("START ", "STOP ")
+    PlotDistribution -> plotDistribution eventLog startStopLabels
     PlotOverTime -> error "overtime not yet implemented"
