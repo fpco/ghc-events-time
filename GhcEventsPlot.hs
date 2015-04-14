@@ -164,8 +164,8 @@ hist :: F.Foldable f =>
 hist xs = fillBuilder (hb xs) xs
 
 renderHeader :: FilePath -> Diagram B R2 -> IO ()
-renderHeader fn =
-  mainRender ( DiagramOpts (Just 900) (Just 700) fn
+renderHeader outputPath =
+  mainRender ( DiagramOpts (Just 900) (Just 700) outputPath
              , DiagramLoopOpts False Nothing 0
              )
 
