@@ -116,6 +116,8 @@ plotDistribution EventLog{ dat = Data{ events } } = do
 
 denv :: DEnv
 denv = unsafePerformIO $ defaultEnv vectorAlignmentFns 500 500
+{-# NOINLINE denv #-}
+
 
 numBins :: Int
 numBins = 40
