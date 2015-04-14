@@ -5,6 +5,7 @@ module Main where
 import           Data.Foldable (for_)
 import           Data.List (stripPrefix, mapAccumL)
 import           Data.Maybe (catMaybes, mapMaybe)
+import           Data.Word (Word64)
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           GHC.RTS.Events (Data(..), Event(..), EventLog(..), EventInfo(EventBlock, block_events, UserMessage, UserMarker), Timestamp, readEventLogFromFile)
@@ -23,13 +24,13 @@ import qualified Control.Foldl as F
 
 
 import Data.Colour
-import Diagrams.Prelude hiding ( sample, render, (<>) )
+import Diagrams.Prelude hiding ( Duration, sample, render, (<>) )
 
 import Diagrams.Backend.Cairo.CmdLine
 import Diagrams.Backend.CmdLine
 
 import Graphics.Rendering.Chart.Backend.Diagrams
-import Graphics.Rendering.Chart
+import Graphics.Rendering.Chart hiding (label)
 
 import Data.Default.Class
 
@@ -92,27 +93,46 @@ makeBad :: Encounter a -> Encounter a -> Encounter a
 makeBad JustOne{} _ = Bad 1
 makeBad (Bad n)  _ = Bad (n + 1)
 
+
+type Duration = Word64
+
+
+labeledEventsToDurations :: [(Timestamp, String)] -> [(String, Timestamp, Duration)]
+labeledEventsToDurations labeledEvents = durations
+  where
+    f (m :: Map String (Encounter Timestamp)) (time, s)
+      | Just label <- stripPrefix "START " s = (Map.insertWith makeBad label (JustOne time) m, Nothing)
+      | Just label <- stripPrefix "STOP "  s = case Map.lookup label m of
+                                                 Nothing -> (m, Nothing) -- discard STOPs with missing START label
+                                                 Just (JustOne startTime) -> (Map.delete label m, Just (label, startTime, time-startTime))
+                                                 Just (Bad n) -> (Map.insert label (Bad (n-1)) m, Nothing)
+      | otherwise = (m, Nothing)
+
+    durations = catMaybes . snd $ mapAccumL f Map.empty labeledEvents
+
+
+groupEventDurations :: [(Timestamp, String)] -> Map String [(Timestamp, Duration)]
+groupEventDurations labeledEvents = groupedDurations
+  where
+    durations = labeledEventsToDurations labeledEvents
+
+    groupedDurations = Map.fromListWith (++) [ (label, [(startTime, d)])
+                                             | (label, startTime, d) <- durations ]
+
+
 plotDistribution :: EventLog -> IO ()
 plotDistribution EventLog{ dat = Data{ events } } = do
   let userEvents = filterUserEvents events
 
-      f (m :: Map String (Encounter Timestamp)) (time, s)
-        | Just label <- stripPrefix "START " s = (Map.insertWith makeBad label (JustOne time) m, Nothing)
-        | Just label <- stripPrefix "STOP "  s = case Map.lookup label m of
-                                                   Nothing -> (m, Nothing) -- discard STOPs with missing START label
-                                                   Just (JustOne startTime) -> (Map.delete label m, Just (label, startTime, time-startTime))
-                                                   Just (Bad n) -> (Map.insert label (Bad (n-1)) m, Nothing)
-        | otherwise = (m, Nothing)
+      groupedDurations = groupEventDurations userEvents
 
-      durations = catMaybes . snd $ mapAccumL f Map.empty userEvents
+  for_ (Map.toList groupedDurations) $ \(label, durations) -> do
+    let ds = map (\(_, z) -> fromIntegral z / 1e6) durations
 
-      groupedDurations = Map.fromListWith (++) [ (label, [(startTime, d)])
-                                               | (label, startTime, d) <- durations ]
-
-  let ds = map (\(_, _, z) -> fromIntegral z / 1e6) durations
-
-  displayHeader "durations.png"
-    (barDiag "Durations (milliseconds)" (zip (map fst $ asList (hist ds)) (map snd $ asList (hist ds))))
+    displayHeader (label ++ "-durations.png") $
+      barDiag
+       (label ++ " - Durations (milliseconds)")
+       (zip (map fst $ asList (hist ds)) (map snd $ asList (hist ds)))
 
 denv :: DEnv
 denv = unsafePerformIO $ defaultEnv vectorAlignmentFns 500 500
@@ -192,4 +212,4 @@ main = do
 
   case mode of
     PlotDistribution -> plotDistribution eventLog
-    PlotOverTime -> undefined
+    PlotOverTime -> error "overtime not yet implemented"
