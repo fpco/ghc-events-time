@@ -109,10 +109,10 @@ plotDistribution EventLog{ dat = Data{ events } } = do
       groupedDurations = Map.fromListWith (++) [ (label, [(startTime, d)])
                                                | (label, startTime, d) <- durations ]
 
-  let ds = map (\(_, _, z) -> fromIntegral z) durations
+  let ds = map (\(_, _, z) -> fromIntegral z / 1e6) durations
 
   displayHeader "durations.png"
-    (barDiag "Durations" (zip (map fst $ asList (hist ds)) (map snd $ asList (hist ds))))
+    (barDiag "Durations (milliseconds)" (zip (map fst $ asList (hist ds)) (map snd $ asList (hist ds))))
 
 denv :: DEnv
 denv = unsafePerformIO $ defaultEnv vectorAlignmentFns 500 500
