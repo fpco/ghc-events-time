@@ -8,33 +8,18 @@ import           Data.Maybe (catMaybes, mapMaybe)
 import           Data.Word (Word64)
 import           Data.Map (Map)
 import qualified Data.Map as Map
+import           Diagrams.Backend.Cairo.CmdLine (B)
+import           Diagrams.Backend.CmdLine (mainRender, DiagramOpts(..), DiagramLoopOpts(..))
+import           Diagrams.Prelude (Diagram, R2)
 import           GHC.RTS.Events (Data(..), Event(..), EventLog(..), EventInfo(EventBlock, block_events, UserMessage, UserMarker), Timestamp, readEventLogFromFile)
 import           GHC.Generics
+import           Graphics.Rendering.Chart (vectorAlignmentFns)
+import           Graphics.Rendering.Chart.Backend.Diagrams (defaultEnv)
 import           Options.Applicative
 import           System.Exit (exitFailure)
 import           System.IO (hPutStrLn, stderr)
 
-import qualified Data.Vector.Unboxed as U
-
-import Data.Histogram ( asList )
-import Data.Histogram.Fill
-import Data.Histogram.Generic ( Histogram )
-
-import qualified Control.Foldl as F
-
-
-import Data.Colour
-import Diagrams.Prelude hiding ( Duration, sample, render, (<>) )
-
-import Diagrams.Backend.Cairo.CmdLine
-import Diagrams.Backend.CmdLine
-
-import Graphics.Rendering.Chart.Backend.Diagrams
-import Graphics.Rendering.Chart hiding (label)
-
-import Data.Default.Class
-
-import Text.Printf
+import           GHC.Events.Time.Diagrams (doubleHistogramDiagram)
 
 
 data PlotOpts = PlotOpts
@@ -118,6 +103,13 @@ groupEventDurations labeledEvents = groupedDurations
                                              | (label, startTime, d) <- durations ]
 
 
+renderHeader :: FilePath -> Diagram B R2 -> IO ()
+renderHeader outputPath =
+  mainRender ( DiagramOpts (Just 900) (Just 700) outputPath
+             , DiagramLoopOpts False Nothing 0
+             )
+
+
 plotDistribution :: EventLog -> IO ()
 plotDistribution EventLog{ dat = Data{ events } } = do
   let userEvents = filterUserEvents events
@@ -132,68 +124,6 @@ plotDistribution EventLog{ dat = Data{ events } } = do
     renderHeader (label ++ "-durations.svg") $
       doubleHistogramDiagram denv (label ++ " - Durations (milliseconds)") ds
 
-
-doubleHistogramDiagram :: DEnv -> String -> [Double] -> Diagram B R2
-doubleHistogramDiagram denv label ds = barDiag denv label (asList (hist ds))
-
-
-numBins :: Int
-numBins = 40
-
-stats :: (F.Foldable f, Fractional a) =>
-         f a -> (a, a, a)
-stats v = F.fold stats v
-  where
-    stats = f <$> (F.premap (\x -> x * x) F.sum) <*> F.sum <*> F.genericLength
-    f x2Sum xSum n = (var, mean, n)
-      where
-        mean = xSum / n
-        mean2 = x2Sum / n
-        var = n * (mean2 - mean * mean) / (n - 1)
-
-hb :: F.Foldable f =>
-      f Double -> HBuilder Double (Histogram U.Vector BinD Double)
-hb xs = forceDouble -<< mkSimple (binD lower numBins upper)
-  where
-    (varX, xBar, _) = stats xs
-    lower = xBar - 2.0 * sqrt varX
-    upper = xBar + 2.0 * sqrt varX
-
-hist :: F.Foldable f =>
-        f Double -> Histogram U.Vector BinD Double
-hist xs = fillBuilder (hb xs) xs
-
-renderHeader :: FilePath -> Diagram B R2 -> IO ()
-renderHeader outputPath =
-  mainRender ( DiagramOpts (Just 900) (Just 700) outputPath
-             , DiagramLoopOpts False Nothing 0
-             )
-
-barChart :: String ->
-            [(Double, Double)] ->
-            Graphics.Rendering.Chart.Renderable ()
-barChart title bvs = toRenderable layout
-  where
-    layout =
-      layout_title .~ title
-      $ layout_x_axis . laxis_generate .~ autoIndexAxis (map (printf "%4.3f" . fst) bvs)
-
-      $ layout_y_axis . laxis_title .~ "Frequency"
-      $ layout_plots .~ (map plotBars $ [bars1])
-      $ def
-
-    bars1 =
-      plot_bars_titles .~ [title]
-      $ plot_bars_values .~ addIndexes (map return $ map snd bvs)
-      $ plot_bars_style .~ BarsClustered
-      $ plot_bars_item_styles .~ [(solidFillStyle (blue `withOpacity` 0.25), Nothing)]
-      $ def
-
-barDiag :: DEnv ->
-           String ->
-           [(Double, Double)] ->
-           Diagram B R2
-barDiag denv title bvs = fst $ runBackend denv (render (barChart title bvs) (500, 500))
 
 die :: String -> IO a
 die msg = do
