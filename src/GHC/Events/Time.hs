@@ -2,6 +2,7 @@
 
 module GHC.Events.Time
   ( Duration
+  , StartStopLabels
   , filterUserEvents
   , groupEventDurations
   , plotDistribution
@@ -46,12 +47,16 @@ makeBad (Bad n)  _ = Bad (n + 1)
 type Duration = Word64
 
 
-labeledEventsToDurations :: [(Timestamp, String)] -> [(String, Timestamp, Duration)]
-labeledEventsToDurations labeledEvents = durations
+type StartStopLabels = (String, String)
+
+
+labeledEventsToDurations :: StartStopLabels -> [(Timestamp, String)] -> [(String, Timestamp, Duration)]
+labeledEventsToDurations startStopLabels labeledEvents = durations
   where
+    (start, stop) = startStopLabels
     f (m :: Map String (Encounter Timestamp)) (time, s)
-      | Just label <- stripPrefix "START " s = (Map.insertWith makeBad label (JustOne time) m, Nothing)
-      | Just label <- stripPrefix "STOP "  s = case Map.lookup label m of
+      | Just label <- stripPrefix start s = (Map.insertWith makeBad label (JustOne time) m, Nothing)
+      | Just label <- stripPrefix stop  s = case Map.lookup label m of
                                                  Nothing -> (m, Nothing) -- discard STOPs with missing START label
                                                  Just (JustOne startTime) -> (Map.delete label m, Just (label, startTime, time-startTime))
                                                  Just (Bad n) -> (Map.insert label (Bad (n-1)) m, Nothing)
@@ -60,10 +65,10 @@ labeledEventsToDurations labeledEvents = durations
     durations = catMaybes . snd $ mapAccumL f Map.empty labeledEvents
 
 
-groupEventDurations :: [(Timestamp, String)] -> Map String [(Timestamp, Duration)]
-groupEventDurations labeledEvents = groupedDurations
+groupEventDurations :: StartStopLabels -> [(Timestamp, String)] -> Map String [(Timestamp, Duration)]
+groupEventDurations startStopLabels labeledEvents = groupedDurations
   where
-    durations = labeledEventsToDurations labeledEvents
+    durations = labeledEventsToDurations startStopLabels labeledEvents
 
     groupedDurations = Map.fromListWith (++) [ (label, [(startTime, d)])
                                              | (label, startTime, d) <- durations ]
@@ -76,11 +81,11 @@ renderHeader outputPath =
              )
 
 
-plotDistribution :: EventLog -> IO ()
-plotDistribution EventLog{ dat = Data{ events } } = do
-  let userEvents = filterUserEvents events
+plotDistribution :: EventLog -> StartStopLabels -> IO ()
+plotDistribution EventLog{ dat = Data{ events } } startStopLabels = do
 
-      groupedDurations = groupEventDurations userEvents
+  let userEvents       = filterUserEvents events
+      groupedDurations = groupEventDurations startStopLabels userEvents
 
   denv <- defaultEnv vectorAlignmentFns 500 500
 

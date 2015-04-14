@@ -63,5 +63,5 @@ main = do
     Right el -> return el
 
   case mode of
-    PlotDistribution -> plotDistribution eventLog
+    PlotDistribution -> plotDistribution eventLog ("START ", "STOP ")
     PlotOverTime -> error "overtime not yet implemented"
