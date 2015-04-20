@@ -24,7 +24,7 @@ import           Diagrams.Backend.CmdLine (mainRender, DiagramOpts(..), DiagramL
 import           Diagrams.Prelude (Diagram, R2)
 import           GHC.RTS.Events (Data(..), Event(..), EventLog(..), EventInfo(EventBlock, block_events, UserMessage, UserMarker), Timestamp)
 import           Graphics.Rendering.Chart (vectorAlignmentFns)
-import           Graphics.Rendering.Chart.Backend.Diagrams (defaultEnv)
+import           Graphics.Rendering.Chart.Backend.Diagrams (DEnv, defaultEnv)
 
 import           GHC.Events.Time.Diagrams (doubleHistogramDiagram)
 
@@ -93,16 +93,35 @@ renderHeader outputPath =
              )
 
 
-plotDistribution :: EventLog -> StartStopLabels -> IO ()
-plotDistribution EventLog{ dat = Data{ events } } startStopLabels = do
+renderWithAllUserEvents ::
+  Label ->
+  (DEnv -> Label -> [(Timestamp, Duration)] -> Diagram B R2) ->
+  EventLog ->
+  StartStopLabels ->
+  IO ()
+renderWithAllUserEvents outFileInfix diagramFun eventLog startStopLabels = do
 
-  let userEvents   = filterUserEvents events
+  let EventLog{ dat = Data{ events } } = eventLog
+      userEvents   = filterUserEvents events
       groupedSpans = groupEventSpans startStopLabels userEvents
 
   denv <- defaultEnv vectorAlignmentFns 500 500
 
-  for_ (Map.toList groupedSpans) $ \(label, durations) -> do
-    let ds = map (\(_, z) -> fromIntegral z / 1e6) durations
+  for_ (Map.toList groupedSpans) $ \(label, eventSpans) -> do
 
-    renderHeader (label ++ "-durations.svg") $
-      doubleHistogramDiagram denv (label ++ " - Durations (milliseconds)") ds
+    renderHeader (label ++ "-" ++ outFileInfix ++ ".svg") $
+      diagramFun denv label eventSpans
+
+
+nanoSecsToMillis :: Word64 -> Double
+nanoSecsToMillis ns = fromIntegral ns * 1e-6
+
+
+plotDistribution :: EventLog -> StartStopLabels -> IO ()
+plotDistribution =
+  renderWithAllUserEvents "durations" $ \denv label eventSpans ->
+    let durations = map (nanoSecsToMillis . snd) eventSpans
+    in doubleHistogramDiagram
+         denv
+         (label ++ " - Durations (milliseconds)")
+         durations
