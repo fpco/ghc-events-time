@@ -11,6 +11,8 @@ module GHC.Events.Time
   ) where
 
 
+import           Control.Applicative
+import qualified Data.DList as DList
 import           Data.Foldable (for_)
 import           Data.List (stripPrefix, mapAccumL)
 import           Data.Maybe (catMaybes, mapMaybe)
@@ -73,10 +75,15 @@ labeledEventsToSpans startStopLabels labeledEvents = labeledEventSpans
     labeledEventSpans = catMaybes . snd $ mapAccumL f Map.empty labeledEvents
 
 
+fromListWithAppend :: Ord k => [(k, a)] -> Map k [a]
+fromListWithAppend xs = DList.toList <$>
+  Map.fromListWith (flip DList.append) [ (k, DList.singleton a) | (k, a) <- xs ]
+{-# INLINABLE fromListWithAppend #-}
+
+
 groupEventSpans :: StartStopLabels -> [(Timestamp, Label)] -> Map Label [EventSpan]
 groupEventSpans startStopLabels labeledEvents =
-  Map.fromListWith (++) [ (l, [eventSpan])
-                        | (l, eventSpan) <- labeledEventsToSpans startStopLabels labeledEvents ]
+  fromListWithAppend (labeledEventsToSpans startStopLabels labeledEvents)
 
 
 renderHeader :: FilePath -> Diagram B R2 -> IO ()
