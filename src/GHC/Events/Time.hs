@@ -8,6 +8,7 @@ module GHC.Events.Time
   , filterUserEvents
   , groupEventSpans
   , plotDistribution
+  , plotOverTime
   ) where
 
 
@@ -26,7 +27,8 @@ import           GHC.RTS.Events (Data(..), Event(..), EventLog(..), EventInfo(Ev
 import           Graphics.Rendering.Chart (vectorAlignmentFns)
 import           Graphics.Rendering.Chart.Backend.Diagrams (DEnv, defaultEnv)
 
-import           GHC.Events.Time.Diagrams (doubleHistogramDiagram)
+import           GHC.Events.Time.Diagrams (doubleHistogramDiagram, xyDiagram)
+
 
 
 filterUserEvents :: [Event] -> [(Timestamp, String)]
@@ -113,6 +115,10 @@ renderWithAllUserEvents outFileInfix diagramFun eventLog startStopLabels = do
       diagramFun denv label eventSpans
 
 
+nanoSecsToSecs :: Word64 -> Double
+nanoSecsToSecs ns = fromIntegral ns * 1e-9
+
+
 nanoSecsToMillis :: Word64 -> Double
 nanoSecsToMillis ns = fromIntegral ns * 1e-6
 
@@ -125,3 +131,13 @@ plotDistribution =
          denv
          (label ++ " - Durations (milliseconds)")
          durations
+
+
+plotOverTime :: EventLog -> StartStopLabels -> IO ()
+plotOverTime =
+  renderWithAllUserEvents "overtime" $ \denv label eventSpans ->
+    xyDiagram
+      denv
+      (label ++ " - Durations over time")
+      ("Event number", "Duration (milliseconds)")
+      [ (nanoSecsToSecs time, nanoSecsToMillis dur) | (time, dur) <- eventSpans ]

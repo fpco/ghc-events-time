@@ -8,7 +8,7 @@ import           Options.Applicative
 import           System.Exit (exitFailure)
 import           System.IO (hPutStrLn, stderr)
 
-import           GHC.Events.Time (plotDistribution)
+import           GHC.Events.Time (plotDistribution, plotOverTime)
 
 
 data PlotOpts = PlotOpts
@@ -85,4 +85,4 @@ main = do
 
   case mode of
     PlotDistribution -> plotDistribution eventLog startStopLabels
-    PlotOverTime -> error "overtime not yet implemented"
+    PlotOverTime -> plotOverTime eventLog startStopLabels

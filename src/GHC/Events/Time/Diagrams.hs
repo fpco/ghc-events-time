@@ -1,5 +1,8 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module GHC.Events.Time.Diagrams
   ( doubleHistogramDiagram
+  , xyDiagram
   ) where
 
 
@@ -76,3 +79,33 @@ barDiag denv title bvs = fst $ runBackend denv (render (barChart title bvs) (500
 
 doubleHistogramDiagram :: DEnv -> String -> [Double] -> Diagram B R2
 doubleHistogramDiagram denv label ds = barDiag denv label (asList (hist ds))
+
+
+xyDiagram ::
+  forall x y .
+  (PlotValue x, PlotValue y) =>
+  DEnv ->
+  String ->
+  (String, String) ->
+  [(x, y)] ->
+  Diagram B R2
+xyDiagram denv title (xAxisTitle, yAxisTitle) durations =
+  fst $ runBackend denv (render renderable (500, 500))
+
+  where
+    renderable :: Graphics.Rendering.Chart.Renderable ()
+    renderable = toRenderable layout
+
+    layout =
+      layout_title .~ title
+      $ layout_x_axis . laxis_title .~ xAxisTitle
+      $ layout_y_axis . laxis_title .~ yAxisTitle
+      $ layout_plots .~ [toPlot plotPoints]
+      $ def
+
+    plotPoints :: PlotPoints x y
+    plotPoints =
+      plot_points_title .~ title
+      $ plot_points_values .~ durations
+      $ plot_points_style %~ (point_color .~ (blue `withOpacity` 0.75))
+      $ def
