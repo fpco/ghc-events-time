@@ -1,10 +1,12 @@
 {-# LANGUAGE NamedFieldPuns, ScopedTypeVariables #-}
 
 module GHC.Events.Time
-  ( Duration
+  ( Label
+  , Duration
+  , EventSpan
   , StartStopLabels
   , filterUserEvents
-  , groupEventDurations
+  , groupEventSpans
   , plotDistribution
   ) where
 
@@ -44,34 +46,37 @@ makeBad JustOne{} _ = Bad 1
 makeBad (Bad n)  _ = Bad (n + 1)
 
 
+type Label = String
+
+
 type Duration = Word64
 
 
 type StartStopLabels = (String, String)
 
 
-labeledEventsToDurations :: StartStopLabels -> [(Timestamp, String)] -> [(String, Timestamp, Duration)]
-labeledEventsToDurations startStopLabels labeledEvents = durations
+type EventSpan = (Timestamp, Duration)
+
+
+labeledEventsToSpans :: StartStopLabels -> [(Timestamp, String)] -> [(Label, EventSpan)]
+labeledEventsToSpans startStopLabels labeledEvents = labeledEventSpans
   where
     (start, stop) = startStopLabels
-    f (m :: Map String (Encounter Timestamp)) (time, s)
+    f (m :: Map Label (Encounter Timestamp)) (time, s)
       | Just label <- stripPrefix start s = (Map.insertWith makeBad label (JustOne time) m, Nothing)
       | Just label <- stripPrefix stop  s = case Map.lookup label m of
                                                  Nothing -> (m, Nothing) -- discard STOPs with missing START label
-                                                 Just (JustOne startTime) -> (Map.delete label m, Just (label, startTime, time-startTime))
+                                                 Just (JustOne startTime) -> (Map.delete label m, Just (label, (startTime, time-startTime)))
                                                  Just (Bad n) -> (Map.insert label (Bad (n-1)) m, Nothing)
       | otherwise = (m, Nothing)
 
-    durations = catMaybes . snd $ mapAccumL f Map.empty labeledEvents
+    labeledEventSpans = catMaybes . snd $ mapAccumL f Map.empty labeledEvents
 
 
-groupEventDurations :: StartStopLabels -> [(Timestamp, String)] -> Map String [(Timestamp, Duration)]
-groupEventDurations startStopLabels labeledEvents = groupedDurations
-  where
-    durations = labeledEventsToDurations startStopLabels labeledEvents
-
-    groupedDurations = Map.fromListWith (++) [ (label, [(startTime, d)])
-                                             | (label, startTime, d) <- durations ]
+groupEventSpans :: StartStopLabels -> [(Timestamp, Label)] -> Map Label [EventSpan]
+groupEventSpans startStopLabels labeledEvents =
+  Map.fromListWith (++) [ (l, [eventSpan])
+                        | (l, eventSpan) <- labeledEventsToSpans startStopLabels labeledEvents ]
 
 
 renderHeader :: FilePath -> Diagram B R2 -> IO ()
@@ -84,14 +89,13 @@ renderHeader outputPath =
 plotDistribution :: EventLog -> StartStopLabels -> IO ()
 plotDistribution EventLog{ dat = Data{ events } } startStopLabels = do
 
-  let userEvents       = filterUserEvents events
-      groupedDurations = groupEventDurations startStopLabels userEvents
+  let userEvents   = filterUserEvents events
+      groupedSpans = groupEventSpans startStopLabels userEvents
 
   denv <- defaultEnv vectorAlignmentFns 500 500
 
-  for_ (Map.toList groupedDurations) $ \(label, durations) -> do
+  for_ (Map.toList groupedSpans) $ \(label, durations) -> do
     let ds = map (\(_, z) -> fromIntegral z / 1e6) durations
 
     renderHeader (label ++ "-durations.svg") $
       doubleHistogramDiagram denv (label ++ " - Durations (milliseconds)") ds
-
