@@ -8,7 +8,7 @@ import           Options.Applicative
 import           System.Exit (exitFailure)
 import           System.IO (hPutStrLn, stderr)
 
-import           GHC.Events.Time (plotDistribution, plotOverTime)
+import           GHC.Events.Time (plotDistribution, plotOverTime, plotPDF, plotCDF)
 
 
 data PlotOpts = PlotOpts
@@ -21,6 +21,8 @@ data PlotOpts = PlotOpts
 
 data PlotMode
   = PlotDistribution
+  | PlotPDF
+  | PlotCDF
   | PlotOverTime
   deriving (Eq, Ord, Show, Generic)
 
@@ -33,6 +35,16 @@ plotModeParser = subparser
     <> command "distribution" (info
       (pure PlotDistribution)
       (progDesc "Plot the time distribution of events")
+    )
+
+    <> command "pdf" (info
+      (pure PlotPDF)
+      (progDesc "Plot the time distribution of events as a probability density function")
+    )
+
+    <> command "cdf" (info
+      (pure PlotCDF)
+      (progDesc "Plot the time distribution of events as a cumulative density function")
     )
 
     <> command "overtime" (info
@@ -85,4 +97,6 @@ main = do
 
   case mode of
     PlotDistribution -> plotDistribution eventLog startStopLabels
+    PlotPDF -> plotPDF eventLog startStopLabels
+    PlotCDF -> plotCDF eventLog startStopLabels
     PlotOverTime -> plotOverTime eventLog startStopLabels

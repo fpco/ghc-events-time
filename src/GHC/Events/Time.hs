@@ -9,13 +9,15 @@ module GHC.Events.Time
   , groupEventSpans
   , plotDistribution
   , plotOverTime
+  , plotPDF
+  , plotCDF
   ) where
 
 
 import           Control.Applicative
 import qualified Data.DList as DList
 import           Data.Foldable (for_)
-import           Data.List (stripPrefix, mapAccumL)
+import           Data.List (stripPrefix, mapAccumL, sort)
 import           Data.Maybe (catMaybes, mapMaybe)
 import           Data.Word (Word64)
 import           Data.Map (Map)
@@ -141,3 +143,29 @@ plotOverTime =
       (label ++ " - Durations over time")
       ("Event number", "Duration (milliseconds)")
       [ (nanoSecsToSecs time, nanoSecsToMillis dur) | (time, dur) <- eventSpans ]
+
+
+plotPDF :: EventLog -> StartStopLabels -> IO ()
+plotPDF =
+  renderWithAllUserEvents "pdf" $ \denv label eventSpans ->
+    let durations = map (nanoSecsToMillis . snd) eventSpans
+    in xyDiagram
+         denv
+         (label ++ " - Durations PDF")
+         ("Event number", "Duration (milliseconds)")
+         (zip [(0::Int)..] (sort durations))
+
+
+plotCDF :: EventLog -> StartStopLabels -> IO ()
+plotCDF =
+  renderWithAllUserEvents "cdf" $ \denv label eventSpans ->
+    let cumulativeDurations =   map nanoSecsToSecs
+                              . scanl (+) 0
+                              . sort
+                              . map snd
+                              $ eventSpans
+    in xyDiagram
+         denv
+         (label ++ " - Durations CDF")
+         ("Number of events (sorted by event duration, ascending)", "Accumulated duration (seconds)")
+         (zip [(0::Int)..] cumulativeDurations)
