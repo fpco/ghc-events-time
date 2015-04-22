@@ -8,7 +8,7 @@ import           Options.Applicative
 import           System.Exit (exitFailure)
 import           System.IO (hPutStrLn, stderr)
 
-import           GHC.Events.Time (plotDistribution, plotOverTime, plotPDF, plotCDF)
+import           GHC.Events.Time (plotHistogram, plotOverTime, plotCumulativeFreq, plotCumulativeSum)
 
 
 data PlotOpts = PlotOpts
@@ -20,9 +20,9 @@ data PlotOpts = PlotOpts
 
 
 data PlotMode
-  = PlotDistribution
-  | PlotPDF
-  | PlotCDF
+  = PlotHistogram
+  | PlotCumulativeFreq
+  | PlotCumulativeSum
   | PlotOverTime
   deriving (Eq, Ord, Show, Generic)
 
@@ -32,26 +32,26 @@ plotModeParser = subparser
   (
     metavar "MODE"
 
-    <> command "distribution" (info
-      (pure PlotDistribution)
-      (progDesc "Plot the time distribution of events")
+    <> command "histogram" (info
+      (pure PlotHistogram)
+      (progDesc "Plot a histogram of event durations")
     )
 
-    <> command "pdf" (info
-      (pure PlotPDF)
-      (progDesc "Plot the time distribution of events as a probability density function")
+    <> command "cumulative-freq" (info
+      (pure PlotCumulativeFreq)
+      (progDesc "Plot cumulative frequency (how many event durations are shorter than X)")
     )
 
-    <> command "cdf" (info
-      (pure PlotCDF)
-      (progDesc "Plot the time distribution of events as a cumulative density function")
+    <> command "cumulative-sum" (info
+      (pure PlotCumulativeSum)
+      (progDesc $ "Plot cumulative sum (how do event durations add up to total run time;"
+                  ++ " integral of cumulative-freq)")
     )
 
-    <> command "overtime" (info
+    <> command "over-time" (info
       (pure PlotOverTime)
-      (progDesc "Plot the time distribution of events over run-time of the program")
+      (progDesc "Plot time durations of events over total run time of the program")
     )
-
   )
 
 
@@ -96,7 +96,7 @@ main = do
     Right el -> return el
 
   case mode of
-    PlotDistribution -> plotDistribution eventLog startStopLabels
-    PlotPDF -> plotPDF eventLog startStopLabels
-    PlotCDF -> plotCDF eventLog startStopLabels
+    PlotHistogram -> plotHistogram eventLog startStopLabels
+    PlotCumulativeFreq -> plotCumulativeFreq eventLog startStopLabels
+    PlotCumulativeSum -> plotCumulativeSum eventLog startStopLabels
     PlotOverTime -> plotOverTime eventLog startStopLabels

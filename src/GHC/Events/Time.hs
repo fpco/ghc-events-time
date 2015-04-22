@@ -7,10 +7,10 @@ module GHC.Events.Time
   , StartStopLabels
   , filterUserEvents
   , groupEventSpans
-  , plotDistribution
+  , plotHistogram
   , plotOverTime
-  , plotPDF
-  , plotCDF
+  , plotCumulativeFreq
+  , plotCumulativeSum
   ) where
 
 
@@ -125,9 +125,9 @@ nanoSecsToMillis :: Word64 -> Double
 nanoSecsToMillis ns = fromIntegral ns * 1e-6
 
 
-plotDistribution :: EventLog -> StartStopLabels -> IO ()
-plotDistribution =
-  renderWithAllUserEvents "durations" $ \denv label eventSpans ->
+plotHistogram :: EventLog -> StartStopLabels -> IO ()
+plotHistogram =
+  renderWithAllUserEvents "histogram" $ \denv label eventSpans ->
     let durations = map (nanoSecsToMillis . snd) eventSpans
     in doubleHistogramDiagram
          denv
@@ -145,20 +145,20 @@ plotOverTime =
       [ (nanoSecsToSecs time, nanoSecsToMillis dur) | (time, dur) <- eventSpans ]
 
 
-plotPDF :: EventLog -> StartStopLabels -> IO ()
-plotPDF =
-  renderWithAllUserEvents "pdf" $ \denv label eventSpans ->
+plotCumulativeFreq :: EventLog -> StartStopLabels -> IO ()
+plotCumulativeFreq =
+  renderWithAllUserEvents "cumulative-freq" $ \denv label eventSpans ->
     let durations = map (nanoSecsToMillis . snd) eventSpans
     in xyDiagram
          denv
-         (label ++ " - Durations PDF")
+         (label ++ " - Durations cumulative frequency")
          ("Event number", "Duration (milliseconds)")
          (zip [(0::Int)..] (sort durations))
 
 
-plotCDF :: EventLog -> StartStopLabels -> IO ()
-plotCDF =
-  renderWithAllUserEvents "cdf" $ \denv label eventSpans ->
+plotCumulativeSum :: EventLog -> StartStopLabels -> IO ()
+plotCumulativeSum =
+  renderWithAllUserEvents "cumulative-sum" $ \denv label eventSpans ->
     let cumulativeDurations =   map nanoSecsToSecs
                               . scanl (+) 0
                               . sort
@@ -166,6 +166,6 @@ plotCDF =
                               $ eventSpans
     in xyDiagram
          denv
-         (label ++ " - Durations CDF")
+         (label ++ " - Durations cumulative sum")
          ("Number of events (sorted by event duration, ascending)", "Accumulated duration (seconds)")
          (zip [(0::Int)..] cumulativeDurations)
