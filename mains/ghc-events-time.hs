@@ -11,11 +11,11 @@ import           System.IO (hPutStrLn, stderr)
 import           GHC.Events.Time (plotHistogram, plotOverTime, plotCumulativeFreq, plotCumulativeSum)
 
 
-data PlotOpts = PlotOpts
-  { plotOptsMode :: !PlotMode
-  , plotOptsEventLogPath :: !FilePath
-  , plotOptsStartLabel :: !String
-  , plotOptsStopLabel :: !String
+data Opts = Opts
+  { optsPlotMode :: !PlotMode
+  , optsEventLogPath :: !FilePath
+  , optsStartLabel :: !String
+  , optsStopLabel :: !String
   } deriving (Eq, Ord, Show, Generic)
 
 
@@ -55,9 +55,9 @@ plotModeParser = subparser
   )
 
 
-plotoptsParser :: Parser PlotOpts
+plotoptsParser :: Parser Opts
 plotoptsParser =
-  PlotOpts
+  Opts
     <$> plotModeParser
     <*> argument str (metavar "<eventlog file>")
     <*> strOption
@@ -82,11 +82,11 @@ die msg = do
 
 main :: IO ()
 main = do
-  PlotOpts
-    { plotOptsMode         = mode
-    , plotOptsEventLogPath = eventLogPath
-    , plotOptsStartLabel   = startLabel
-    , plotOptsStopLabel    = stopLabel
+  Opts
+    { optsPlotMode     = mode
+    , optsEventLogPath = eventLogPath
+    , optsStartLabel   = startLabel
+    , optsStopLabel    = stopLabel
     } <- execParser $ info (helper <*> plotoptsParser) fullDesc
 
   let startStopLabels = (startLabel, stopLabel)
