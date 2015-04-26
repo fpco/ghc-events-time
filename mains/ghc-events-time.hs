@@ -11,14 +11,16 @@ import           System.IO (hPutStrLn, stderr)
 import           GHC.Events.Time (plotHistogram, plotOverTime, plotCumulativeFreq, plotCumulativeSum)
 
 
+-- | Command line options for this program.
 data Opts = Opts
-  { optsPlotMode :: !PlotMode
-  , optsEventLogPath :: !FilePath
-  , optsStartLabel :: !String
-  , optsStopLabel :: !String
+  { optsPlotMode :: !PlotMode -- ^ type of plot to generate
+  , optsEventLogPath :: !FilePath -- ^ input GHC *.eventlog file
+  , optsStartLabel :: !String -- ^ prefix indicating start of an event (e.g. "START ")
+  , optsStopLabel :: !String -- ^ prefix indicating stop of an event (e.g. "STOP ")
   } deriving (Eq, Ord, Show, Generic)
 
 
+-- | The type of plot we want to generate.
 data PlotMode
   = PlotHistogram
   | PlotCumulativeFreq
@@ -27,6 +29,7 @@ data PlotMode
   deriving (Eq, Ord, Show, Generic)
 
 
+-- | CLI parser the type of plot to generate.
 plotModeParser :: Parser PlotMode
 plotModeParser = subparser
   (
@@ -55,6 +58,7 @@ plotModeParser = subparser
   )
 
 
+-- | Main program CLI parser.
 plotoptsParser :: Parser Opts
 plotoptsParser =
   Opts
@@ -74,6 +78,7 @@ plotoptsParser =
           )
 
 
+-- | Terminates the program with an error message to stderr.
 die :: String -> IO a
 die msg = do
   hPutStrLn stderr $ "ERROR: " ++ msg
@@ -82,6 +87,7 @@ die msg = do
 
 main :: IO ()
 main = do
+  -- Parse CLI options.
   Opts
     { optsPlotMode     = mode
     , optsEventLogPath = eventLogPath
@@ -91,10 +97,12 @@ main = do
 
   let startStopLabels = (startLabel, stopLabel)
 
+  -- Load *.eventlog file.
   eventLog <- readEventLogFromFile eventLogPath >>= \case
     Left err -> die $ "Could not read eventlog file: " ++ err
     Right el -> return el
 
+  -- Generate the plot.
   case mode of
     PlotHistogram -> plotHistogram eventLog startStopLabels
     PlotCumulativeFreq -> plotCumulativeFreq eventLog startStopLabels

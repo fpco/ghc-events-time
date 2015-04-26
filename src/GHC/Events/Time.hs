@@ -1,5 +1,30 @@
 {-# LANGUAGE NamedFieldPuns, ScopedTypeVariables #-}
 
+-- | Plots timed GHC -eventlog events in pretty graphs.
+--
+-- This is similar to the `ghc-events-analyze` program that allows analysis of
+-- multi-core behaviour of applications using the event log, but in contrast
+-- to `ghc-events-analyze` this library focuses on timing and duration
+-- distributions of the events.
+--
+-- You can use `traceEvent`/`traceEventIO` or `traceMarker`/`traceMarkerIO`
+-- from "Debug.Trace" to emit string-annotated events from your program; the
+-- resulting *.eventlog file can be parsed into an `EventLog` with the
+-- `ghc-events` library (e.g. `readEventLogFromFile`) and then be analyzed
+-- for plotting using this module (see `groupEventSpans`).
+--
+-- Events in eventlog files are punctual; to create a notion of "durations",
+-- the string annotations of events are expected to be prefixed like
+-- `"START mylabel"`/`"STOP mylabel"`.
+-- In the terminology of this library, the `"mylabel"` part is called the
+-- `Label` of the `EventSpan` defined by the two events.
+-- This grouping two `Event`s into labelled `EventSpan` is performed
+-- `labeledEventsToSpans`.
+--
+-- Different kinds of plots are supported:
+--
+-- * Distribution plots (`plotHistogram`, `plotCumulativeFreq`, `plotCumulativeSum`)
+-- * Plots graphed over the run-time of the program (`plotOverTime`)
 module GHC.Events.Time
   ( Label
   , Duration
@@ -32,7 +57,13 @@ import           Graphics.Rendering.Chart.Backend.Diagrams (DEnv, defaultEnv)
 import           GHC.Events.Time.Diagrams (doubleHistogramDiagram, xyDiagram)
 
 
-
+-- | Returns those entries of an eventlog that are emitted by the user
+-- with a label (`traceEvent`/`traceMarker` or their IO equivalents from
+-- "Debug.Trace").
+--
+-- Returns the event time and user-emitted event string for each event.
+--
+-- Preserves the order of events.
 filterUserEvents :: [Event] -> [(Timestamp, String)]
 filterUserEvents events =
   concat $ flip mapMaybe events $ \Event{ time, spec } -> case spec of
@@ -42,15 +73,26 @@ filterUserEvents events =
     _             -> Nothing
 
 
+-- | A label of a duration between two events.
+--
+-- This is the remainder part of the user-emitted event annotation
+-- with the `"START "`/`"STOP "` or equivalent prefix (see `StartStopLabels`)
+-- stripped off, e.g. `"mylabel"` for `"START mylabel"` + `"STOP mylabel"`.
 type Label = String
 
 
+-- | Duration of an @EventSpan@, in nanoseconds.
 type Duration = Word64
 
 
+-- | Labels to look for when grouping two punctual events into one `EventSpan`.
+--
+-- This is usually `("START ", "STOP ")`.
 type StartStopLabels = (String, String)
 
 
+-- | A time span between a start and stop event, with a starting time
+-- and a duration.
 type EventSpan = (Timestamp, Duration)
 
 
