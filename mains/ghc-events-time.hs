@@ -63,8 +63,8 @@ plotModeParser = subparser
 
 
 -- | Main program CLI parser.
-plotoptsParser :: Parser Opts
-plotoptsParser =
+optsParser :: Parser Opts
+optsParser =
   Opts
     <$> many plotModeParser
     <*> argument str (metavar "<eventlog file>")
@@ -97,7 +97,7 @@ main = do
     , optsEventLogPath = eventLogPath
     , optsStartLabel   = startLabel
     , optsStopLabel    = stopLabel
-    } <- execParser $ info (helper <*> plotoptsParser) fullDesc
+    } <- execParser $ info (helper <*> optsParser) fullDesc
 
   let startStopLabels = (startLabel, stopLabel)
 
