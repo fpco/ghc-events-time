@@ -42,16 +42,6 @@ filterUserEvents events =
     _             -> Nothing
 
 
-data Encounter a
-  = JustOne !a
-  | Bad !Int
-
-
-makeBad :: Encounter a -> Encounter a -> Encounter a
-makeBad JustOne{} _ = Bad 1
-makeBad (Bad n)  _ = Bad (n + 1)
-
-
 type Label = String
 
 
@@ -64,17 +54,71 @@ type StartStopLabels = (String, String)
 type EventSpan = (Timestamp, Duration)
 
 
+
+-- | A value that we desire to encounter not more than once; otherwise we track
+-- it as `Bad`, with a counter of how many more times than desired we have
+-- encountered it (e.g. `Bad 1` means we've encountered it once, and that's
+-- bad because it's one more time than we'd like).
+--
+-- After something has become `Bad`, it stays `Bad` until it disappears
+-- completely. That's why a `Bad 0` isn't `JustOne`!
+data Encounter a
+  = JustOne !a
+  | Bad !Int
+
+
+-- | Combines two `Encounter`s; the result is `Bad` because two are already
+-- more than we desire.
+makeBad :: Encounter a -> Encounter a -> Encounter a
+makeBad JustOne{} JustOne{} = Bad 1
+makeBad JustOne{} (Bad m)   = Bad m
+makeBad (Bad n)   JustOne{} = Bad n
+makeBad (Bad n)   (Bad m)   = Bad (n + m)
+
+
+-- | Groups a list of punctual string-annotated events to a list of
+-- `EventSpan`s.
+--
+-- An event with annotation `"START " ++ label` is matched with the next event
+-- annotated as `"STOP " ++ label` (the labels must match).
+--
+-- The start/stop prefixes can be customised via the passed-in
+-- `StartStopLabels`.
+--
+-- Stop events without preceding start event are discarded, as are start events
+-- that have no stop event following.
+--
+-- `EventSpan`s with the same label are allowed, but their durations must not
+-- overlap - that would make matching ambiguous.
+-- Events that lead to overlapping spans are ignored.
+--
+-- Example: For A=start, B=stop, and identical labels, the series
+-- @B A B A A B B A B A@ will yield 2 `EventSpan`s.
+-- The leading @B@, trailing @A@, and ambiguous @A A B B@ are discarded.
+--
+-- PRE: The events passed in are in ascending time order.
+--
+-- POST: The output `EventSpan`s are in ascending time order.
 labeledEventsToSpans :: StartStopLabels -> [(Timestamp, String)] -> [(Label, EventSpan)]
 labeledEventsToSpans startStopLabels labeledEvents = labeledEventSpans
   where
     (start, stop) = startStopLabels
+
+    -- The Map keeps track of whether we've already encountered an event with
+    -- the given `Label`. The good case is when we encounter exactly one START
+    -- label (inserts `JustOne`) and then a STOP label (deletes `JustOne`).
+    -- If we encounter more than one START label, matching is ambiguous and we
+    -- go into `Bad` mode for that label; matching will only continue after that
+    -- label has been completely "drained" from the Map with STOP labels.
     f (m :: Map Label (Encounter Timestamp)) (time, s)
       | Just label <- stripPrefix start s = (Map.insertWith makeBad label (JustOne time) m, Nothing)
-      | Just label <- stripPrefix stop  s = case Map.lookup label m of
-                                                 Nothing -> (m, Nothing) -- discard STOPs with missing START label
-                                                 Just (JustOne startTime) -> (Map.delete label m, Just (label, (startTime, time-startTime)))
-                                                 Just (Bad n) -> (Map.insert label (Bad (n-1)) m, Nothing)
-      | otherwise = (m, Nothing)
+      | Just label <- stripPrefix stop  s =
+          case Map.lookup label m of
+            Nothing                  -> (m,                              Nothing) -- discard STOPs with missing START label
+            Just (JustOne startTime) -> (Map.delete label m,             Just (label, (startTime, time-startTime)))
+            Just (Bad 0)             -> (Map.delete label m,             Nothing) -- done draining
+            Just (Bad n)             -> (Map.insert label (Bad (n-1)) m, Nothing) -- drain overlap
+      | otherwise = (m, Nothing) -- discard event that don't have a start/stop prefix
 
     labeledEventSpans = catMaybes . snd $ mapAccumL f Map.empty labeledEvents
 
