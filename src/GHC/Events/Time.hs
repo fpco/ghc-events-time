@@ -67,10 +67,10 @@ import           GHC.Events.Time.Diagrams (doubleHistogramDiagram, xyDiagram)
 filterUserEvents :: [Event] -> [(Timestamp, String)]
 filterUserEvents events =
   concat $ flip mapMaybe events $ \Event{ time, spec } -> case spec of
-    UserMessage s -> Just [(time, s)]
-    UserMarker  s -> Just [(time, s)]
+    UserMessage s              -> Just [(time, s)]
+    UserMarker  s              -> Just [(time, s)]
     EventBlock{ block_events } -> Just (filterUserEvents block_events)
-    _             -> Nothing
+    _                          -> Nothing
 
 
 -- | A label of a duration between two events.
