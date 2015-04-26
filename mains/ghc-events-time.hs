@@ -2,6 +2,7 @@
 
 module Main where
 
+import           Data.Foldable (for_)
 import           GHC.RTS.Events (readEventLogFromFile)
 import           GHC.Generics
 import           Options.Applicative
@@ -14,7 +15,7 @@ import           GHC.Events.Time (plotHistogram, plotOverTime, plotCumulativeFre
 
 -- | Command line options for this program.
 data Opts = Opts
-  { optsPlotMode :: !PlotMode -- ^ type of plot to generate
+  { optsPlotCommands :: ![PlotCommand] -- ^ types of plots to generate
   , optsEventLogPath :: !FilePath -- ^ input GHC *.eventlog file
   , optsStartLabel :: !String -- ^ prefix indicating start of an event (e.g. "START ")
   , optsStopLabel :: !String -- ^ prefix indicating stop of an event (e.g. "STOP ")
@@ -22,7 +23,7 @@ data Opts = Opts
 
 
 -- | The type of plot we want to generate.
-data PlotMode
+data PlotCommand
   = PlotHistogram
   | PlotCumulativeFreq
   | PlotCumulativeSum
@@ -31,10 +32,12 @@ data PlotMode
 
 
 -- | CLI parser the type of plot to generate.
-plotModeParser :: Parser PlotMode
+plotModeParser :: Parser PlotCommand
 plotModeParser = subparser
+  -- Keeping PlotCommand as a subparser allows each command to have its own
+  -- custom set of options.
   (
-    metavar "MODE"
+    metavar "COMMAND"
 
     <> command "histogram" (info
       (pure PlotHistogram)
@@ -63,7 +66,7 @@ plotModeParser = subparser
 plotoptsParser :: Parser Opts
 plotoptsParser =
   Opts
-    <$> plotModeParser
+    <$> many plotModeParser
     <*> argument str (metavar "<eventlog file>")
     <*> strOption
           (   long "start"
@@ -90,7 +93,7 @@ main :: IO ()
 main = do
   -- Parse CLI options.
   Opts
-    { optsPlotMode     = mode
+    { optsPlotCommands = commands
     , optsEventLogPath = eventLogPath
     , optsStartLabel   = startLabel
     , optsStopLabel    = stopLabel
@@ -106,7 +109,7 @@ main = do
   let outFilePrefix = takeFileName eventLogPath
 
   -- Generate the plot.
-  case mode of
+  for_ commands $ \comm -> case comm of
     PlotHistogram -> plotHistogram eventLog startStopLabels outFilePrefix
     PlotCumulativeFreq -> plotCumulativeFreq eventLog startStopLabels outFilePrefix
     PlotCumulativeSum -> plotCumulativeSum eventLog startStopLabels outFilePrefix
