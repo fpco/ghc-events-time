@@ -188,8 +188,9 @@ renderWithAllUserEvents ::
   (DEnv -> Label -> [(Timestamp, Duration)] -> Diagram B R2) ->
   EventLog ->
   StartStopLabels ->
+  FilePath ->
   IO ()
-renderWithAllUserEvents outFileInfix diagramFun eventLog startStopLabels = do
+renderWithAllUserEvents outFileInfix diagramFun eventLog startStopLabels outFilePrefix = do
 
   let EventLog{ dat = Data{ events } } = eventLog
       userEvents   = filterUserEvents events
@@ -199,7 +200,7 @@ renderWithAllUserEvents outFileInfix diagramFun eventLog startStopLabels = do
 
   for_ (Map.toList groupedSpans) $ \(label, eventSpans) -> do
 
-    renderHeader (label ++ "-" ++ outFileInfix ++ ".svg") $
+    renderHeader (outFilePrefix ++ "-" ++ label ++ "-" ++ outFileInfix ++ ".svg") $
       diagramFun denv label eventSpans
 
 
@@ -211,7 +212,7 @@ nanoSecsToMillis :: Word64 -> Double
 nanoSecsToMillis ns = fromIntegral ns * 1e-6
 
 
-plotHistogram :: EventLog -> StartStopLabels -> IO ()
+plotHistogram :: EventLog -> StartStopLabels -> FilePath -> IO ()
 plotHistogram =
   renderWithAllUserEvents "histogram" $ \denv label eventSpans ->
     let durations = map (nanoSecsToMillis . snd) eventSpans
@@ -221,7 +222,7 @@ plotHistogram =
          durations
 
 
-plotOverTime :: EventLog -> StartStopLabels -> IO ()
+plotOverTime :: EventLog -> StartStopLabels -> FilePath -> IO ()
 plotOverTime =
   renderWithAllUserEvents "overtime" $ \denv label eventSpans ->
     xyDiagram
@@ -231,7 +232,7 @@ plotOverTime =
       [ (nanoSecsToSecs time, nanoSecsToMillis dur) | (time, dur) <- eventSpans ]
 
 
-plotCumulativeFreq :: EventLog -> StartStopLabels -> IO ()
+plotCumulativeFreq :: EventLog -> StartStopLabels -> FilePath -> IO ()
 plotCumulativeFreq =
   renderWithAllUserEvents "cumulative-freq" $ \denv label eventSpans ->
     let durations = map (nanoSecsToMillis . snd) eventSpans
@@ -242,7 +243,7 @@ plotCumulativeFreq =
          (zip [(0::Int)..] (sort durations))
 
 
-plotCumulativeSum :: EventLog -> StartStopLabels -> IO ()
+plotCumulativeSum :: EventLog -> StartStopLabels -> FilePath -> IO ()
 plotCumulativeSum =
   renderWithAllUserEvents "cumulative-sum" $ \denv label eventSpans ->
     let cumulativeDurations =   map nanoSecsToSecs

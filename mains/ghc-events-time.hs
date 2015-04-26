@@ -6,6 +6,7 @@ import           GHC.RTS.Events (readEventLogFromFile)
 import           GHC.Generics
 import           Options.Applicative
 import           System.Exit (exitFailure)
+import           System.FilePath (takeFileName)
 import           System.IO (hPutStrLn, stderr)
 
 import           GHC.Events.Time (plotHistogram, plotOverTime, plotCumulativeFreq, plotCumulativeSum)
@@ -102,9 +103,11 @@ main = do
     Left err -> die $ "Could not read eventlog file: " ++ err
     Right el -> return el
 
+  let outFilePrefix = takeFileName eventLogPath
+
   -- Generate the plot.
   case mode of
-    PlotHistogram -> plotHistogram eventLog startStopLabels
-    PlotCumulativeFreq -> plotCumulativeFreq eventLog startStopLabels
-    PlotCumulativeSum -> plotCumulativeSum eventLog startStopLabels
-    PlotOverTime -> plotOverTime eventLog startStopLabels
+    PlotHistogram -> plotHistogram eventLog startStopLabels outFilePrefix
+    PlotCumulativeFreq -> plotCumulativeFreq eventLog startStopLabels outFilePrefix
+    PlotCumulativeSum -> plotCumulativeSum eventLog startStopLabels outFilePrefix
+    PlotOverTime -> plotOverTime eventLog startStopLabels outFilePrefix
