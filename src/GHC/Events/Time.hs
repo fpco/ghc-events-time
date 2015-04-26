@@ -1,4 +1,4 @@
-{-# LANGUAGE NamedFieldPuns, ScopedTypeVariables #-}
+{-# LANGUAGE NamedFieldPuns, ScopedTypeVariables, DeriveGeneric #-}
 
 -- | Plots timed GHC -eventlog events in pretty graphs.
 --
@@ -32,6 +32,9 @@ module GHC.Events.Time
   , StartStopLabels
   , filterUserEvents
   , groupEventSpans
+  , renderLabelDiagrams
+  , makeChartEnv
+  , unChartEnv
   , plotHistogram
   , plotOverTime
   , plotCumulativeFreq
@@ -47,6 +50,7 @@ import           Data.Maybe (catMaybes, mapMaybe)
 import           Data.Word (Word64)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import           GHC.Generics (Generic)
 import           Diagrams.Backend.Cairo.CmdLine (B)
 import           Diagrams.Backend.CmdLine (mainRender, DiagramOpts(..), DiagramLoopOpts(..))
 import           Diagrams.Prelude (Diagram, R2)
@@ -183,20 +187,18 @@ renderHeader outputPath =
              )
 
 
-renderWithAllGroupedSpans ::
+renderLabelDiagrams ::
   String ->
-  (DEnv -> Label -> [(Timestamp, Duration)] -> Diagram B R2) ->
-  Map Label [EventSpan] ->
   FilePath ->
+  Map Label (Diagram B R2) ->
   IO ()
-renderWithAllGroupedSpans outFileInfix diagramFun groupedSpans outFilePrefix = do
+renderLabelDiagrams outFileInfix outFilePrefix labeledDiagrams = do
 
-  denv <- defaultEnv vectorAlignmentFns 500 500
+  for_ (Map.toList labeledDiagrams) $ \(label, diagram) -> do
 
-  for_ (Map.toList groupedSpans) $ \(label, eventSpans) -> do
-
-    renderHeader (outFilePrefix ++ "-" ++ label ++ "-" ++ outFileInfix ++ ".svg") $
-      diagramFun denv label eventSpans
+    renderHeader
+      (outFilePrefix ++ "-" ++ label ++ "-" ++ outFileInfix ++ ".svg")
+      diagram
 
 
 nanoSecsToSecs :: Word64 -> Double
@@ -207,47 +209,51 @@ nanoSecsToMillis :: Word64 -> Double
 nanoSecsToMillis ns = fromIntegral ns * 1e-6
 
 
-plotHistogram :: Map Label [EventSpan] -> FilePath -> IO ()
-plotHistogram =
-  renderWithAllGroupedSpans "histogram" $ \denv label eventSpans ->
-    let durations = map (nanoSecsToMillis . snd) eventSpans
-    in doubleHistogramDiagram
-         denv
-         (label ++ " - Durations (milliseconds)")
-         durations
+newtype ChartEnv = ChartEnv { unChartEnv :: DEnv }
+  deriving (Generic)
 
 
-plotOverTime :: Map Label [EventSpan] -> FilePath -> IO ()
-plotOverTime =
-  renderWithAllGroupedSpans "overtime" $ \denv label eventSpans ->
-    xyDiagram
-      denv
-      (label ++ " - Durations over time")
-      ("Event number", "Duration (milliseconds)")
-      [ (nanoSecsToSecs time, nanoSecsToMillis dur) | (time, dur) <- eventSpans ]
+makeChartEnv :: IO ChartEnv
+makeChartEnv = ChartEnv <$> defaultEnv vectorAlignmentFns 500 500
 
 
-plotCumulativeFreq :: Map Label [EventSpan] -> FilePath -> IO ()
-plotCumulativeFreq =
-  renderWithAllGroupedSpans "cumulative-freq" $ \denv label eventSpans ->
-    let durations = map (nanoSecsToMillis . snd) eventSpans
-    in xyDiagram
-         denv
-         (label ++ " - Durations cumulative frequency")
-         ("Event number", "Duration (milliseconds)")
-         (zip [(0::Int)..] (sort durations))
+plotHistogram :: ChartEnv -> Label -> [EventSpan] -> Diagram B R2
+plotHistogram chartEnv label eventSpans =
+  let durations = map (nanoSecsToMillis . snd) eventSpans
+  in doubleHistogramDiagram
+       (unChartEnv chartEnv)
+       (label ++ " - Durations (milliseconds)")
+       durations
 
 
-plotCumulativeSum :: Map Label [EventSpan] -> FilePath -> IO ()
-plotCumulativeSum =
-  renderWithAllGroupedSpans "cumulative-sum" $ \denv label eventSpans ->
-    let cumulativeDurations =   map nanoSecsToSecs
-                              . scanl (+) 0
-                              . sort
-                              . map snd
-                              $ eventSpans
-    in xyDiagram
-         denv
-         (label ++ " - Durations cumulative sum")
-         ("Number of events (sorted by event duration, ascending)", "Accumulated duration (seconds)")
-         (zip [(0::Int)..] cumulativeDurations)
+plotOverTime :: ChartEnv -> Label -> [EventSpan] -> Diagram B R2
+plotOverTime chartEnv label eventSpans =
+  xyDiagram
+    (unChartEnv chartEnv)
+    (label ++ " - Durations over time")
+    ("Event number", "Duration (milliseconds)")
+    [ (nanoSecsToSecs time, nanoSecsToMillis dur) | (time, dur) <- eventSpans ]
+
+
+plotCumulativeFreq :: ChartEnv -> Label -> [EventSpan] -> Diagram B R2
+plotCumulativeFreq chartEnv label eventSpans =
+  let durations = map (nanoSecsToMillis . snd) eventSpans
+  in xyDiagram
+       (unChartEnv chartEnv)
+       (label ++ " - Durations cumulative frequency")
+       ("Event number", "Duration (milliseconds)")
+       (zip [(0::Int)..] (sort durations))
+
+
+plotCumulativeSum :: ChartEnv -> Label -> [EventSpan] -> Diagram B R2
+plotCumulativeSum chartEnv label eventSpans =
+  let cumulativeDurations =   map nanoSecsToSecs
+                            . scanl (+) 0
+                            . sort
+                            . map snd
+                            $ eventSpans
+  in xyDiagram
+       (unChartEnv chartEnv)
+       (label ++ " - Durations cumulative sum")
+       ("Number of events (sorted by event duration, ascending)", "Accumulated duration (seconds)")
+       (zip [(0::Int)..] cumulativeDurations)

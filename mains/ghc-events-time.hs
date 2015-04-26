@@ -3,6 +3,7 @@
 module Main where
 
 import           Data.Foldable (for_)
+import qualified Data.Map.Strict as Map
 import           GHC.RTS.Events (EventLog(..), Data(..), readEventLogFromFile)
 import           GHC.Generics
 import           Options.Applicative
@@ -10,7 +11,7 @@ import           System.Exit (exitFailure)
 import           System.FilePath (takeFileName)
 import           System.IO (hPutStrLn, stderr)
 
-import           GHC.Events.Time (filterUserEvents, groupEventSpans, plotHistogram, plotOverTime, plotCumulativeFreq, plotCumulativeSum)
+import           GHC.Events.Time (filterUserEvents, groupEventSpans, makeChartEnv, renderLabelDiagrams, plotHistogram, plotOverTime, plotCumulativeFreq, plotCumulativeSum)
 
 
 -- | Command line options for this program.
@@ -110,11 +111,16 @@ main = do
       userEvents   = filterUserEvents events
       groupedSpans = groupEventSpans startStopLabels userEvents
 
-  let outFilePrefix = takeFileName eventLogPath
+  env <- makeChartEnv
+
+  let plot name plotFun = renderLabelDiagrams
+                            name
+                            (takeFileName eventLogPath)
+                            (Map.mapWithKey (plotFun env) groupedSpans)
 
   -- Generate the plot.
   for_ commands $ \comm -> case comm of
-    PlotHistogram -> plotHistogram groupedSpans outFilePrefix
-    PlotCumulativeFreq -> plotCumulativeFreq groupedSpans outFilePrefix
-    PlotCumulativeSum -> plotCumulativeSum groupedSpans outFilePrefix
-    PlotOverTime -> plotOverTime groupedSpans outFilePrefix
+    PlotHistogram      -> plot "histogram" plotHistogram
+    PlotCumulativeFreq -> plot "overtime" plotOverTime
+    PlotCumulativeSum  -> plot "cumulative-freq" plotCumulativeFreq
+    PlotOverTime       -> plot "cumulative-sum" plotCumulativeSum
