@@ -3,14 +3,14 @@
 module Main where
 
 import           Data.Foldable (for_)
-import           GHC.RTS.Events (readEventLogFromFile)
+import           GHC.RTS.Events (EventLog(..), Data(..), readEventLogFromFile)
 import           GHC.Generics
 import           Options.Applicative
 import           System.Exit (exitFailure)
 import           System.FilePath (takeFileName)
 import           System.IO (hPutStrLn, stderr)
 
-import           GHC.Events.Time (plotHistogram, plotOverTime, plotCumulativeFreq, plotCumulativeSum)
+import           GHC.Events.Time (filterUserEvents, groupEventSpans, plotHistogram, plotOverTime, plotCumulativeFreq, plotCumulativeSum)
 
 
 -- | Command line options for this program.
@@ -106,11 +106,15 @@ main = do
     Left err -> die $ "Could not read eventlog file: " ++ err
     Right el -> return el
 
+  let EventLog{ dat = Data{ events } } = eventLog
+      userEvents   = filterUserEvents events
+      groupedSpans = groupEventSpans startStopLabels userEvents
+
   let outFilePrefix = takeFileName eventLogPath
 
   -- Generate the plot.
   for_ commands $ \comm -> case comm of
-    PlotHistogram -> plotHistogram eventLog startStopLabels outFilePrefix
-    PlotCumulativeFreq -> plotCumulativeFreq eventLog startStopLabels outFilePrefix
-    PlotCumulativeSum -> plotCumulativeSum eventLog startStopLabels outFilePrefix
-    PlotOverTime -> plotOverTime eventLog startStopLabels outFilePrefix
+    PlotHistogram -> plotHistogram groupedSpans outFilePrefix
+    PlotCumulativeFreq -> plotCumulativeFreq groupedSpans outFilePrefix
+    PlotCumulativeSum -> plotCumulativeSum groupedSpans outFilePrefix
+    PlotOverTime -> plotOverTime groupedSpans outFilePrefix

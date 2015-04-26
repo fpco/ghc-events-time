@@ -50,7 +50,7 @@ import qualified Data.Map as Map
 import           Diagrams.Backend.Cairo.CmdLine (B)
 import           Diagrams.Backend.CmdLine (mainRender, DiagramOpts(..), DiagramLoopOpts(..))
 import           Diagrams.Prelude (Diagram, R2)
-import           GHC.RTS.Events (Data(..), Event(..), EventLog(..), EventInfo(EventBlock, block_events, UserMessage, UserMarker), Timestamp)
+import           GHC.RTS.Events (Event(..), EventInfo(EventBlock, block_events, UserMessage, UserMarker), Timestamp)
 import           Graphics.Rendering.Chart (vectorAlignmentFns)
 import           Graphics.Rendering.Chart.Backend.Diagrams (DEnv, defaultEnv)
 
@@ -183,18 +183,13 @@ renderHeader outputPath =
              )
 
 
-renderWithAllUserEvents ::
+renderWithAllGroupedSpans ::
   String ->
   (DEnv -> Label -> [(Timestamp, Duration)] -> Diagram B R2) ->
-  EventLog ->
-  StartStopLabels ->
+  Map Label [EventSpan] ->
   FilePath ->
   IO ()
-renderWithAllUserEvents outFileInfix diagramFun eventLog startStopLabels outFilePrefix = do
-
-  let EventLog{ dat = Data{ events } } = eventLog
-      userEvents   = filterUserEvents events
-      groupedSpans = groupEventSpans startStopLabels userEvents
+renderWithAllGroupedSpans outFileInfix diagramFun groupedSpans outFilePrefix = do
 
   denv <- defaultEnv vectorAlignmentFns 500 500
 
@@ -212,9 +207,9 @@ nanoSecsToMillis :: Word64 -> Double
 nanoSecsToMillis ns = fromIntegral ns * 1e-6
 
 
-plotHistogram :: EventLog -> StartStopLabels -> FilePath -> IO ()
+plotHistogram :: Map Label [EventSpan] -> FilePath -> IO ()
 plotHistogram =
-  renderWithAllUserEvents "histogram" $ \denv label eventSpans ->
+  renderWithAllGroupedSpans "histogram" $ \denv label eventSpans ->
     let durations = map (nanoSecsToMillis . snd) eventSpans
     in doubleHistogramDiagram
          denv
@@ -222,9 +217,9 @@ plotHistogram =
          durations
 
 
-plotOverTime :: EventLog -> StartStopLabels -> FilePath -> IO ()
+plotOverTime :: Map Label [EventSpan] -> FilePath -> IO ()
 plotOverTime =
-  renderWithAllUserEvents "overtime" $ \denv label eventSpans ->
+  renderWithAllGroupedSpans "overtime" $ \denv label eventSpans ->
     xyDiagram
       denv
       (label ++ " - Durations over time")
@@ -232,9 +227,9 @@ plotOverTime =
       [ (nanoSecsToSecs time, nanoSecsToMillis dur) | (time, dur) <- eventSpans ]
 
 
-plotCumulativeFreq :: EventLog -> StartStopLabels -> FilePath -> IO ()
+plotCumulativeFreq :: Map Label [EventSpan] -> FilePath -> IO ()
 plotCumulativeFreq =
-  renderWithAllUserEvents "cumulative-freq" $ \denv label eventSpans ->
+  renderWithAllGroupedSpans "cumulative-freq" $ \denv label eventSpans ->
     let durations = map (nanoSecsToMillis . snd) eventSpans
     in xyDiagram
          denv
@@ -243,9 +238,9 @@ plotCumulativeFreq =
          (zip [(0::Int)..] (sort durations))
 
 
-plotCumulativeSum :: EventLog -> StartStopLabels -> FilePath -> IO ()
+plotCumulativeSum :: Map Label [EventSpan] -> FilePath -> IO ()
 plotCumulativeSum =
-  renderWithAllUserEvents "cumulative-sum" $ \denv label eventSpans ->
+  renderWithAllGroupedSpans "cumulative-sum" $ \denv label eventSpans ->
     let cumulativeDurations =   map nanoSecsToSecs
                               . scanl (+) 0
                               . sort
