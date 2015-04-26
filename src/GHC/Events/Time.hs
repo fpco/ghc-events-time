@@ -45,8 +45,8 @@ import           Data.Foldable (for_)
 import           Data.List (stripPrefix, mapAccumL, sort)
 import           Data.Maybe (catMaybes, mapMaybe)
 import           Data.Word (Word64)
-import           Data.Map (Map)
-import qualified Data.Map as Map
+import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 import           Diagrams.Backend.Cairo.CmdLine (B)
 import           Diagrams.Backend.CmdLine (mainRender, DiagramOpts(..), DiagramLoopOpts(..))
 import           Diagrams.Prelude (Diagram, R2)
