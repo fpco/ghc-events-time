@@ -98,7 +98,7 @@ renderHeader outputPath =
 
 
 renderWithAllUserEvents ::
-  Label ->
+  String ->
   (DEnv -> Label -> [(Timestamp, Duration)] -> Diagram B R2) ->
   EventLog ->
   StartStopLabels ->
