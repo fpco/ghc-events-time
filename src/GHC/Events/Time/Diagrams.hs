@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module GHC.Events.Time.Diagrams
-  ( doubleHistogramDiagram
+  ( histogramDiagram
   , xyDiagram
   ) where
 
@@ -49,14 +49,15 @@ hist :: F.Foldable f =>
 hist xs = fillBuilder (hb xs) xs
 
 
-barChart :: String ->
-            [(Double, Double)] ->
+barChart :: (PlotValue x) =>
+            String ->
+            [(x, Double)] ->
             Graphics.Rendering.Chart.Renderable ()
 barChart title bvs = toRenderable layout
   where
     layout =
       layout_title .~ title
-      $ layout_x_axis . laxis_generate .~ autoIndexAxis (map (printf "%4.3f" . fst) bvs)
+      $ layout_x_axis . laxis_generate .~ autoIndexAxis (map (printf "%4.3f" . toValue . fst) bvs)
 
       $ layout_y_axis . laxis_title .~ "Frequency"
       $ layout_plots .~ (map plotBars $ [bars1])
@@ -70,15 +71,16 @@ barChart title bvs = toRenderable layout
       $ def
 
 
-barDiag :: DEnv ->
+barDiag :: (PlotValue x) =>
+           DEnv ->
            String ->
-           [(Double, Double)] ->
+           [(x, Double)] ->
            Diagram B R2
 barDiag denv title bvs = fst $ runBackend denv (render (barChart title bvs) (500, 500))
 
 
-doubleHistogramDiagram :: DEnv -> String -> [Double] -> Diagram B R2
-doubleHistogramDiagram denv label ds = barDiag denv label (asList (hist ds))
+histogramDiagram :: (PlotValue x) => DEnv -> String -> [x] -> Diagram B R2
+histogramDiagram denv label ds = barDiag denv label (asList (hist $ map toValue ds))
 
 
 xyDiagram ::

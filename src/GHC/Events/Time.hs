@@ -58,7 +58,7 @@ import           GHC.RTS.Events (Event(..), EventInfo(EventBlock, block_events, 
 import           Graphics.Rendering.Chart (vectorAlignmentFns)
 import           Graphics.Rendering.Chart.Backend.Diagrams (DEnv, defaultEnv)
 
-import           GHC.Events.Time.Diagrams (doubleHistogramDiagram, xyDiagram)
+import           GHC.Events.Time.Diagrams (histogramDiagram, xyDiagram)
 
 
 -- | Returns those entries of an eventlog that are emitted by the user
@@ -220,7 +220,7 @@ makeChartEnv = ChartEnv <$> defaultEnv vectorAlignmentFns 500 500
 plotHistogram :: ChartEnv -> Label -> [EventSpan] -> Diagram B R2
 plotHistogram chartEnv label eventSpans =
   let durations = map (nanoSecsToMillis . snd) eventSpans
-  in doubleHistogramDiagram
+  in histogramDiagram
        (unChartEnv chartEnv)
        (label ++ " - Durations (milliseconds)")
        durations
