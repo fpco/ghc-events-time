@@ -291,7 +291,7 @@ plotOverTime chartEnv label eventSpans =
   xyDiagram
     (unChartEnv chartEnv)
     (label ++ " - Durations over time")
-    ("Event number", "Duration (milliseconds)")
+    ("Total run time", "Duration (milliseconds)")
     [ (nanoSecsToSecs time, nanoSecsToMillis dur) | (time, dur) <- eventSpans ]
 
 
