@@ -115,8 +115,8 @@ main = do
   -- Setup plotting.
   env <- makeChartEnv
   let plot name plotFun = renderLabelDiagrams
-                            name
                             (takeFileName eventLogPath)
+                            name
                             (Map.mapWithKey (plotFun env) groupedSpans)
 
   -- Generate the plot.

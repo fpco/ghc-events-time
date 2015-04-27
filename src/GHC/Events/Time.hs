@@ -199,7 +199,7 @@ renderHeader outputPath =
              )
 
 
--- | @renderLabelDiagrams outFileInfix outFilePrefix labeledDiagrams@:
+-- | @renderLabelDiagrams outFilePrefix outFileInfix labeledDiagrams@:
 -- Renders the @labeledDiagrams` (one for each event `Label`, e.g. created with
 -- `groupEventSpans`) to an SVG file prefixed by @outFilePrefix@, with an
 -- extra @outFileInfix@ indicating the meaning of the diagram.
@@ -215,7 +215,7 @@ renderLabelDiagrams ::
   FilePath ->
   Map Label (Diagram B R2) ->
   IO ()
-renderLabelDiagrams outFileInfix outFilePrefix labeledDiagrams = do
+renderLabelDiagrams outFilePrefix outFileInfix labeledDiagrams = do
 
   for_ (Map.toList labeledDiagrams) $ \(label, diagram) -> do
 
