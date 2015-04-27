@@ -107,12 +107,13 @@ main = do
     Left err -> die $ "Could not read eventlog file: " ++ err
     Right el -> return el
 
+  -- Find user annotated events, group durations by labels.
   let EventLog{ dat = Data{ events } } = eventLog
       userEvents   = filterUserEvents events
       groupedSpans = groupEventSpans startStopLabels userEvents
 
+  -- Setup plotting.
   env <- makeChartEnv
-
   let plot name plotFun = renderLabelDiagrams
                             name
                             (takeFileName eventLogPath)
