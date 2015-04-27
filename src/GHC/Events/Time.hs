@@ -169,17 +169,29 @@ labeledEventsToSpans startStopLabels labeledEvents = labeledEventSpans
     labeledEventSpans = catMaybes . snd $ mapAccumL f Map.empty labeledEvents
 
 
+-- | /O(n*log n)/. Build a map from a list of key/value pairs,
+-- combining values with equal pairs into a list.
+-- The order of occurrence is preserved. See also `fromListWith`.
 fromListWithAppend :: Ord k => [(k, a)] -> Map k [a]
 fromListWithAppend xs = DList.toList <$>
   Map.fromListWith (flip DList.append) [ (k, DList.singleton a) | (k, a) <- xs ]
 {-# INLINABLE fromListWithAppend #-}
 
 
+-- | Groups a list of punctual string-annotated events to a map of
+-- `EventSpan`s, indexed by the event `Label`.
+--
+-- See `labeledEventsToSpans` for details.
+--
+-- PRE: The events passed in are in ascending time order.
+--
+-- POST: The output `EventSpan`s for each `Label` are in ascending time order.
 groupEventSpans :: StartStopLabels -> [(Timestamp, Label)] -> Map Label [EventSpan]
 groupEventSpans startStopLabels labeledEvents =
   fromListWithAppend (labeledEventsToSpans startStopLabels labeledEvents)
 
 
+-- | Renders a `Diagram` with some default settings (e.g. size).
 renderHeader :: FilePath -> Diagram B R2 -> IO ()
 renderHeader outputPath =
   mainRender ( DiagramOpts (Just 900) (Just 700) outputPath
@@ -187,6 +199,17 @@ renderHeader outputPath =
              )
 
 
+-- | @renderLabelDiagrams outFileInfix outFilePrefix labeledDiagrams@:
+-- Renders the @labeledDiagrams` (one for each event `Label`, e.g. created with
+-- `groupEventSpans`) to an SVG file prefixed by @outFilePrefix@, with an
+-- extra @outFileInfix@ indicating the meaning of the diagram.
+--
+-- Example:
+--
+-- > renderLabelDiagrams "histogram" "myprogram-events" labledDiagrams
+-- > -- creates "myprogram-events-label1-histogram.svg",
+-- > --         "myprogram-events-label2-histogram.svg",
+-- > --         ... etc, one for each label in the Map.
 renderLabelDiagrams ::
   String ->
   FilePath ->
@@ -201,22 +224,31 @@ renderLabelDiagrams outFileInfix outFilePrefix labeledDiagrams = do
       diagram
 
 
+-- | Converts nanoseconds to seconds.
 nanoSecsToSecs :: Word64 -> Double
 nanoSecsToSecs ns = fromIntegral ns * 1e-9
 
 
+-- | Converts nanoseconds to milliseconds.
 nanoSecsToMillis :: Word64 -> Double
 nanoSecsToMillis ns = fromIntegral ns * 1e-6
 
 
+-- | Environment containing information like what fonts are available on the
+-- system that can be used for drawing charts.
+--
+-- This is not intended to be modified by the user; we would like to avoid
+-- it entirely but discovering fonts is an `IO` operation.
 newtype ChartEnv = ChartEnv { unChartEnv :: DEnv }
   deriving (Generic)
 
 
+-- | Creates a `ChartEnv` needed for making plots.
 makeChartEnv :: IO ChartEnv
 makeChartEnv = ChartEnv <$> defaultEnv vectorAlignmentFns 500 500
 
 
+-- | Plots event durations into a histogram with automatic bucketing.
 plotHistogram :: ChartEnv -> Label -> [EventSpan] -> Diagram B R2
 plotHistogram chartEnv label eventSpans =
   let durations = map (nanoSecsToMillis . snd) eventSpans
@@ -226,6 +258,7 @@ plotHistogram chartEnv label eventSpans =
        durations
 
 
+-- | Plots event durations over the total time axis.
 plotOverTime :: ChartEnv -> Label -> [EventSpan] -> Diagram B R2
 plotOverTime chartEnv label eventSpans =
   xyDiagram
@@ -235,6 +268,7 @@ plotOverTime chartEnv label eventSpans =
     [ (nanoSecsToSecs time, nanoSecsToMillis dur) | (time, dur) <- eventSpans ]
 
 
+-- | Plots cumulative frequency (how many event durations are shorter than X).
 plotCumulativeFreq :: ChartEnv -> Label -> [EventSpan] -> Diagram B R2
 plotCumulativeFreq chartEnv label eventSpans =
   let durations = map (nanoSecsToMillis . snd) eventSpans
@@ -245,6 +279,9 @@ plotCumulativeFreq chartEnv label eventSpans =
        (zip [(0::Int)..] (sort durations))
 
 
+-- | Plots cumulative sum (how do event durations add up to total run time.
+--
+-- This is the integral of `plotCumulativeFreq`.
 plotCumulativeSum :: ChartEnv -> Label -> [EventSpan] -> Diagram B R2
 plotCumulativeSum chartEnv label eventSpans =
   let cumulativeDurations =   map nanoSecsToSecs

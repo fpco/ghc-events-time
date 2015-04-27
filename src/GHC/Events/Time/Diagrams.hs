@@ -79,10 +79,16 @@ barDiag :: (PlotValue x) =>
 barDiag denv title bvs = fst $ runBackend denv (render (barChart title bvs) (500, 500))
 
 
+-- | @histogramDiagram denv label xs@:
+--
+-- Draws a histogram with automatic binning (currently 40 bins).
 histogramDiagram :: (PlotValue x) => DEnv -> String -> [x] -> Diagram B R2
 histogramDiagram denv label xs = barDiag denv label (asList (hist $ map toValue xs))
 
 
+-- | @xyDiagram denv title (xAxisTitle, yAxisTitle) xys@:
+--
+-- Draws an x-y-scatter diagram.
 xyDiagram ::
   forall x y .
   (PlotValue x, PlotValue y) =>
