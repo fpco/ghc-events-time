@@ -80,7 +80,7 @@ barDiag denv title bvs = fst $ runBackend denv (render (barChart title bvs) (500
 
 
 histogramDiagram :: (PlotValue x) => DEnv -> String -> [x] -> Diagram B R2
-histogramDiagram denv label ds = barDiag denv label (asList (hist $ map toValue ds))
+histogramDiagram denv label xs = barDiag denv label (asList (hist $ map toValue xs))
 
 
 xyDiagram ::
@@ -91,7 +91,7 @@ xyDiagram ::
   (String, String) ->
   [(x, y)] ->
   Diagram B R2
-xyDiagram denv title (xAxisTitle, yAxisTitle) durations =
+xyDiagram denv title (xAxisTitle, yAxisTitle) xys =
   fst $ runBackend denv (render renderable (500, 500))
 
   where
@@ -108,6 +108,6 @@ xyDiagram denv title (xAxisTitle, yAxisTitle) durations =
     plotPoints :: PlotPoints x y
     plotPoints =
       plot_points_title .~ title
-      $ plot_points_values .~ durations
+      $ plot_points_values .~ xys
       $ plot_points_style %~ (point_color .~ (blue `withOpacity` 0.75))
       $ def
