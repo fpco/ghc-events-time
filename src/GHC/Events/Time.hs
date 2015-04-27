@@ -26,7 +26,8 @@
 -- * Distribution plots (`plotHistogram`, `plotCumulativeFreq`, `plotCumulativeSum`)
 -- * Plots graphed over the run-time of the program (`plotOverTime`)
 module GHC.Events.Time
-  ( Label
+  ( Timestamp
+  , Label
   , Duration
   , EventSpan
   , StartStopLabels
