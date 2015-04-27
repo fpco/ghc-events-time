@@ -31,6 +31,7 @@ module GHC.Events.Time
   , EventSpan
   , StartStopLabels
   , filterUserEvents
+  , labeledEventsToSpans
   , groupEventSpans
   , renderLabelDiagrams
   , makeChartEnv
