@@ -67,7 +67,7 @@ plotModeParser = subparser
 optsParser :: Parser Opts
 optsParser =
   Opts
-    <$> many plotModeParser
+    <$> some plotModeParser
     <*> argument str (metavar "<eventlog file>")
     <*> strOption
           (   long "start"
