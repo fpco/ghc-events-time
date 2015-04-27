@@ -41,6 +41,8 @@ module GHC.Events.Time
   , plotOverTime
   , plotCumulativeFreq
   , plotCumulativeSum
+  -- * Internal
+  , fromListWithAppend
   ) where
 
 
