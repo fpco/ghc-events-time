@@ -43,13 +43,15 @@ module GHC.Events.Time
   , plotCumulativeSum
   -- * Internal
   , fromListWithAppend
+  , sanitizeLabelForFilePath
   ) where
 
 
 import           Control.Applicative
 import qualified Data.DList as DList
 import           Data.Foldable (for_)
-import           Data.List (stripPrefix, mapAccumL, sort)
+import           Data.List (stripPrefix, mapAccumL, sort, intercalate, foldl')
+import           Data.List.Split (splitOn)
 import           Data.Maybe (catMaybes, mapMaybe)
 import           Data.Word (Word64)
 import           Data.Map.Strict (Map)
@@ -61,6 +63,7 @@ import           Diagrams.Prelude (Diagram, R2)
 import           GHC.RTS.Events (Event(..), EventInfo(EventBlock, block_events, UserMessage, UserMarker), Timestamp)
 import           Graphics.Rendering.Chart (vectorAlignmentFns)
 import           Graphics.Rendering.Chart.Backend.Diagrams (DEnv, defaultEnv)
+import           System.FilePath (pathSeparators)
 
 import           GHC.Events.Time.Diagrams (histogramDiagram, xyDiagram)
 
@@ -195,6 +198,19 @@ groupEventSpans startStopLabels labeledEvents =
   fromListWithAppend (labeledEventsToSpans startStopLabels labeledEvents)
 
 
+-- | Replaces all `pathSeparators` by @'-'@.
+sanitizeLabelForFilePath :: Label -> String
+sanitizeLabelForFilePath = replaceAll pathSeparatorStrings "-"
+  where
+    replace :: String -> String -> String -> String
+    replace old new = intercalate new . splitOn old
+
+    replaceAll :: [String] -> String -> String -> String
+    replaceAll olds new str = foldl' (\s old -> replace old new s) str olds
+
+    pathSeparatorStrings = map (:"") pathSeparators
+
+
 -- | Renders a `Diagram` with some default settings (e.g. size).
 renderHeader :: FilePath -> Diagram B R2 -> IO ()
 renderHeader outputPath =
@@ -207,6 +223,11 @@ renderHeader outputPath =
 -- Renders the @labeledDiagrams` (one for each event `Label`, e.g. created with
 -- `groupEventSpans`) to an SVG file prefixed by @outFilePrefix@, with an
 -- extra @outFileInfix@ indicating the meaning of the diagram.
+--
+-- @outFileInfix@ and the `Label`s of @labeledDiagrams@ shouldn't contain file
+-- system path separator characters.
+-- If a @labeledDiagrams@ label contains a path separator, it will be replaced
+-- by a @'-'@ (dash).
 --
 -- Example:
 --
@@ -223,8 +244,10 @@ renderLabelDiagrams outFilePrefix outFileInfix labeledDiagrams = do
 
   for_ (Map.toList labeledDiagrams) $ \(label, diagram) -> do
 
+    let saneLabel = sanitizeLabelForFilePath label
+
     renderHeader
-      (outFilePrefix ++ "-" ++ label ++ "-" ++ outFileInfix ++ ".svg")
+      (outFilePrefix ++ "-" ++ saneLabel ++ "-" ++ outFileInfix ++ ".svg")
       diagram
 
 
