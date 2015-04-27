@@ -25,9 +25,9 @@ numBins = 40
 
 stats :: (F.Foldable f, Fractional a) =>
          f a -> (a, a, a)
-stats v = F.fold stats v
+stats v = F.fold stats' v
   where
-    stats = f <$> (F.premap (\x -> x * x) F.sum) <*> F.sum <*> F.genericLength
+    stats' = f <$> (F.premap (\x -> x * x) F.sum) <*> F.sum <*> F.genericLength
     f x2Sum xSum n = (var, mean, n)
       where
         mean = xSum / n
