@@ -72,17 +72,17 @@ barChart title bvs = toRenderable layout
 
 
 barDiag :: (PlotValue x) =>
-           DEnv ->
+           DEnv (N B) ->
            String ->
            [(x, Double)] ->
-           Diagram B R2
+           QDiagram B V2 (N B) Any
 barDiag denv title bvs = fst $ runBackend denv (render (barChart title bvs) (500, 500))
 
 
 -- | @histogramDiagram denv label xs@:
 --
 -- Draws a histogram with automatic binning (currently 40 bins).
-histogramDiagram :: (PlotValue x) => DEnv -> String -> [x] -> Diagram B R2
+histogramDiagram :: (PlotValue x) => DEnv (N B) -> String -> [x] -> QDiagram B V2 (N B) Any
 histogramDiagram denv label xs = barDiag denv label (asList (hist $ map toValue xs))
 
 
@@ -92,11 +92,11 @@ histogramDiagram denv label xs = barDiag denv label (asList (hist $ map toValue 
 xyDiagram ::
   forall x y .
   (PlotValue x, PlotValue y) =>
-  DEnv ->
+  DEnv (N B) ->
   String ->
   (String, String) ->
   [(x, y)] ->
-  Diagram B R2
+  QDiagram B V2 (N B) Any
 xyDiagram denv title (xAxisTitle, yAxisTitle) xys =
   fst $ runBackend denv (render renderable (500, 500))
 
