@@ -125,7 +125,7 @@ main = hspec $ do
         (_, _, _, pid) <-
           createProcess
             (proc
-               (projectDir </> "dist/build/ghc-events-time/ghc-events-time")
+               ("ghc-events-time")
                [ "histogram"
                , "cumulative-freq"
                , "cumulative-sum"
