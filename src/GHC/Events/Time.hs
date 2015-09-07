@@ -59,10 +59,11 @@ import qualified Data.Map.Strict as Map
 import           GHC.Generics (Generic)
 import           Diagrams.Backend.Cairo.CmdLine (B)
 import           Diagrams.Backend.CmdLine (mainRender, DiagramOpts(..), DiagramLoopOpts(..))
-import           Diagrams.Prelude (Diagram, R2)
+import           Diagrams.Prelude hiding (Duration, start)
 import           GHC.RTS.Events (Event(..), EventInfo(EventBlock, block_events, UserMessage, UserMarker), Timestamp)
 import           Graphics.Rendering.Chart (vectorAlignmentFns)
 import           Graphics.Rendering.Chart.Backend.Diagrams (DEnv, defaultEnv)
+import           Prelude
 import           System.FilePath (pathSeparators)
 
 import           GHC.Events.Time.Diagrams (histogramDiagram, xyDiagram)
@@ -212,7 +213,7 @@ sanitizeLabelForFilePath = replaceAll pathSeparatorStrings "-"
 
 
 -- | Renders a `Diagram` with some default settings (e.g. size).
-renderHeader :: FilePath -> Diagram B R2 -> IO ()
+renderHeader :: FilePath -> QDiagram B V2 (N B) Any -> IO ()
 renderHeader outputPath =
   mainRender ( DiagramOpts (Just 900) (Just 700) outputPath
              , DiagramLoopOpts False Nothing 0
@@ -238,7 +239,7 @@ renderHeader outputPath =
 renderLabelDiagrams ::
   String ->
   FilePath ->
-  Map Label (Diagram B R2) ->
+  Map Label (QDiagram B V2 (N B) Any) ->
   IO ()
 renderLabelDiagrams outFilePrefix outFileInfix labeledDiagrams = do
 
@@ -266,7 +267,7 @@ nanoSecsToMillis ns = fromIntegral ns * 1e-6
 --
 -- This is not intended to be modified by the user; we would like to avoid
 -- it entirely but discovering fonts is an `IO` operation.
-newtype ChartEnv = ChartEnv { unChartEnv :: DEnv }
+newtype ChartEnv = ChartEnv { unChartEnv :: DEnv (N B) }
   deriving (Generic)
 
 
@@ -276,7 +277,7 @@ makeChartEnv = ChartEnv <$> defaultEnv vectorAlignmentFns 500 500
 
 
 -- | Plots event durations into a histogram with automatic bucketing.
-plotHistogram :: ChartEnv -> Label -> [EventSpan] -> Diagram B R2
+plotHistogram :: ChartEnv -> Label -> [EventSpan] -> QDiagram B V2 (N B) Any
 plotHistogram chartEnv label eventSpans =
   let durations = map (nanoSecsToMillis . snd) eventSpans
   in histogramDiagram
@@ -286,7 +287,7 @@ plotHistogram chartEnv label eventSpans =
 
 
 -- | Plots event durations over the total time axis.
-plotOverTime :: ChartEnv -> Label -> [EventSpan] -> Diagram B R2
+plotOverTime :: ChartEnv -> Label -> [EventSpan] -> QDiagram B V2 (N B) Any
 plotOverTime chartEnv label eventSpans =
   xyDiagram
     (unChartEnv chartEnv)
@@ -296,7 +297,7 @@ plotOverTime chartEnv label eventSpans =
 
 
 -- | Plots cumulative frequency (how many event durations are shorter than X).
-plotCumulativeFreq :: ChartEnv -> Label -> [EventSpan] -> Diagram B R2
+plotCumulativeFreq :: ChartEnv -> Label -> [EventSpan] -> QDiagram B V2 (N B) Any
 plotCumulativeFreq chartEnv label eventSpans =
   let durations = map (nanoSecsToMillis . snd) eventSpans
   in xyDiagram
@@ -309,7 +310,7 @@ plotCumulativeFreq chartEnv label eventSpans =
 -- | Plots cumulative sum (how do event durations add up to total run time.
 --
 -- This is the integral of `plotCumulativeFreq`.
-plotCumulativeSum :: ChartEnv -> Label -> [EventSpan] -> Diagram B R2
+plotCumulativeSum :: ChartEnv -> Label -> [EventSpan] -> QDiagram B V2 (N B) Any
 plotCumulativeSum chartEnv label eventSpans =
   let cumulativeDurations =   map nanoSecsToSecs
                             . scanl (+) 0
